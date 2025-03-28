@@ -67,6 +67,7 @@ public static class HotKeyManager
             _source = null;
             return false;
         }
+        System.Diagnostics.Debug.WriteLine("Hotkey registered.");
         _isRegistered = true;
         return true;
     }
@@ -92,6 +93,7 @@ public static class HotKeyManager
     {
         if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
         {
+            System.Diagnostics.Debug.WriteLine("Hotkey pressed.");
             _hotkeyPressedAction?.Invoke();
             handled = true;
         }
@@ -107,8 +109,7 @@ public static class HotKeyManager
          if ((modifiers & ModifierKeys.Windows) == ModifierKeys.Windows) fsModifiers |= MOD_WIN;
          return fsModifiers;
     }
-
-     // Optional: Helper to parse from string config (not used in this minimal example yet)
+     
     public static bool TryParseHotkey(string keyStr, string modifiersStr, out Key key, out ModifierKeys modifiers)
     {
         key = Key.None;
