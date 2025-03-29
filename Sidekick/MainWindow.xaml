@@ -1,0 +1,76 @@
+﻿<Window x:Class="Sidekick.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Sidekick"
+        xmlns:vm="clr-namespace:Sidekick.ViewModels"
+        xmlns:vw="clr-namespace:Sidekick.Views" 
+        mc:Ignorable="d"
+        Title="Sidekick Shell" Height="300" Width="1200" 
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ShowInTaskbar="False" Topmost="True"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing"
+        ContentRendered="Window_ContentRendered"
+        Name="ShellWindow"
+        Opacity="1" IsHitTestVisible="False" >
+
+    <Window.Resources>
+        <!-- Resources specific to this Window OR used for templating ViewModels -->
+        <!-- DataTemplates map ViewModels to Views -->
+        <DataTemplate DataType="{x:Type vm:GuidGeneratorViewModel}">
+            <vw:GuidGeneratorView />
+        </DataTemplate>
+        <!-- Add DataTemplate for BuildMonitorViewModel later -->
+
+        <!-- Animations -->
+        <Storyboard x:Key="SlideInAnimation">
+            <DoubleAnimation Storyboard.TargetName="ShellWindow" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
+            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" Storyboard.TargetProperty="Y" From="-300" To="0" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+        <Storyboard x:Key="SlideOutAnimation">
+            <DoubleAnimation Storyboard.TargetName="ShellWindow" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.3"/>
+            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" Storyboard.TargetProperty="Y" From="0" To="-300" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseIn"/></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Window.Resources>
+
+    <!-- Root visual content -->
+    <Border x:Name="ContentBorder"
+            Background="Black" CornerRadius="0 0 15 15"
+            BorderBrush="#FF444444" BorderThickness="1" Margin="0">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="WindowTranslateTransform"/>
+            <!-- Y value set in code-behind constructor based on height -->
+        </Border.RenderTransform>
+
+        <!-- Main Layout Grid -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/> <!-- Navigation Column -->
+                <ColumnDefinition Width="*"/>   <!-- Content Column -->
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation Panel -->
+            <StackPanel Grid.Column="0" Background="#FF252526" Margin="5">
+                <!-- Navigation Buttons correctly using StaticResource -->
+                <Button Content="GUID Gen" Margin="5" Style="{StaticResource NavButtonStyle}"
+                        Command="{Binding NavigateToGuidCommand}"/>
+                <Button Content="Build Monitor" Margin="5" Style="{StaticResource  NavButtonStyle}" IsEnabled="False"
+                        Command="{Binding NavigateToBuildMonitorCommand}"/>
+                <!-- Add more buttons later -->
+            </StackPanel>
+
+            <!-- Content Area -->
+            <ContentControl Grid.Column="1" Margin="5,10,10,10"
+                            Content="{Binding CurrentToolViewModel}"
+                            MaxWidth="600"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"/>
+        </Grid>
+    </Border>
+</Window>

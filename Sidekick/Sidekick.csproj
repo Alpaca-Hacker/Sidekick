@@ -23,15 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ApplicationDefinition Include="App\App.xaml">
-        <Generator>MSBuild:Compile</Generator>
-        <XamlRuntime>Wpf</XamlRuntime>
-        <SubType>Designer</SubType>
-      </ApplicationDefinition>
-    </ItemGroup>
-
-    <ItemGroup>
-      <Page Update="Windows\MainWindow.xaml">
+      <Page Update="MainWindow.xaml">
         <Generator>MSBuild:Compile</Generator>
         <XamlRuntime>Wpf</XamlRuntime>
         <SubType>Designer</SubType>

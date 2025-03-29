@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using Sidekick.ViewModels;
 
 namespace Sidekick;
 
@@ -17,28 +18,29 @@ public partial class MainWindow : Window, IDisposable
     private Storyboard _slideInAnimation;
     private Storyboard _slideOutAnimation;
     private bool _isDisposed = false; // To detect redundant calls
+    private double _originalWindowHeight;
 
-    public MainWindow(HotKeySettings hotKeySettings)
+    public MainWindow(HotKeySettings hotKeySettings, ShellViewModel shellViewModel)
     {
+        InitializeComponent();
         _hotkeySettings = hotKeySettings ?? throw new ArgumentNullException(nameof(hotKeySettings));
         
-        InitializeComponent();
+        DataContext = shellViewModel ?? throw new ArgumentNullException(nameof(shellViewModel));
+
+        Width = SystemParameters.PrimaryScreenWidth;
+        _originalWindowHeight = Height;
+        Left = 0;
+        Top = 0;
         
-        // Position window (e.g., top right corner) - Adjust as needed
-        // Ensure Width/Height are set or SizeToContent is used appropriately
-        Left = SystemParameters.WorkArea.Left;
-        Top = SystemParameters.WorkArea.Top;
-        
+        WindowTranslateTransform.Y = _originalWindowHeight;
+
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Find animations defined in XAML
-        _slideInAnimation = (Storyboard)FindResource("SlideInAnimation");
-        _slideOutAnimation = (Storyboard)FindResource("SlideOutAnimation");
-        _slideOutAnimation.Completed += SlideOutAnimationCompleted;
-
-        // Ensure initial state (redundant with XAML but safe)
+        SetupAnimations();
+        
+        // initial state
         Opacity = 0;
         IsHitTestVisible = false;
         _isWindowVisible = false;
@@ -115,6 +117,28 @@ public partial class MainWindow : Window, IDisposable
         }
 
         Debug.WriteLine("Slide out complete.");
+    }
+
+    private void SetupAnimations()
+    {
+        _slideInAnimation = (Storyboard)FindResource("SlideInAnimation");
+        _slideOutAnimation = (Storyboard)FindResource("SlideOutAnimation");
+        
+        var slideInYAnimation = _slideInAnimation.Children[1] as DoubleAnimation;
+        if (slideInYAnimation != null)
+        {
+            slideInYAnimation.From = -_originalWindowHeight;
+            slideInYAnimation.To = 0;
+        }
+        
+        var slideOutYAnimation = _slideOutAnimation.Children[1] as DoubleAnimation;
+        if (slideOutYAnimation != null)
+        {
+            slideOutYAnimation.From = 0;
+            slideOutYAnimation.To = -_originalWindowHeight;
+        }
+        
+        _slideOutAnimation.Completed += SlideOutAnimationCompleted;
     }
 
 

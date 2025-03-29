@@ -3,6 +3,7 @@ using System.Data;
 using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sidekick.ViewModels;
 
 namespace Sidekick;
 
@@ -39,6 +40,8 @@ public partial class App : Application
     {
         services.AddSingleton(Configuration);
         services.AddSingleton(Configuration.GetSection("HotKey").Get<HotKeySettings>() ?? new HotKeySettings());
+        services.AddSingleton<ShellViewModel>();
+        services.AddSingleton<GuidGeneratorViewModel>();
         
         services.AddTransient<MainWindow>();
     }
