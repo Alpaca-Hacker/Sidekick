@@ -12,7 +12,7 @@ namespace Sidekick;
 /// </summary>
 public partial class MainWindow : Window, IDisposable
 {
-    private readonly HotKeySettings _hotkeySettings;
+    
 
     private bool _isWindowVisible = false;
     private Storyboard _slideInAnimation;
@@ -20,10 +20,9 @@ public partial class MainWindow : Window, IDisposable
     private bool _isDisposed = false; // To detect redundant calls
     private double _originalWindowHeight;
 
-    public MainWindow(HotKeySettings hotKeySettings, ShellViewModel shellViewModel)
+    public MainWindow( ShellViewModel shellViewModel)
     {
         InitializeComponent();
-        _hotkeySettings = hotKeySettings ?? throw new ArgumentNullException(nameof(hotKeySettings));
         
         DataContext = shellViewModel ?? throw new ArgumentNullException(nameof(shellViewModel));
 
@@ -51,34 +50,8 @@ public partial class MainWindow : Window, IDisposable
     
     private void Window_ContentRendered(object sender, EventArgs e)
     {
-        RegisterHotKey();
     }
-
-    private void RegisterHotKey()
-    {
-        Debug.WriteLine($"Attempting to register hotkey from config: Key='{_hotkeySettings.Key}', Modifiers='{_hotkeySettings.Modifiers}'");
-        
-        if (HotKeyManager.TryParseHotkey(_hotkeySettings.Key, _hotkeySettings.Modifiers, out Key key, out ModifierKeys modifiers))
-        {
-            var registered = HotKeyManager.RegisterHotKey(this, key, modifiers, ToggleOverlayVisibility);
-            if (!registered)
-            {
-                MessageBox.Show($"Failed to register configured hotkey ({modifiers}+{key}). It might be in use by another application or invalid.",
-                    "Hotkey Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-            else
-            {
-                Debug.WriteLine($"Hotkey {modifiers}+{key} registered successfully.");
-            }
-        }
-        else
-        {
-            MessageBox.Show($"Invalid hotkey configuration in appsettings.json: Key='{_hotkeySettings.Key}', Modifiers='{_hotkeySettings.Modifiers}'. Using defaults or disabling.",
-                "Hotkey Config Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            
-            HotKeyManager.RegisterHotKey(this, Key.F12, ModifierKeys.Control | ModifierKeys.Shift, ToggleOverlayVisibility);
-        }
-    }
+    
 
     public void ToggleOverlayVisibility()
     {
@@ -165,7 +138,7 @@ public partial class MainWindow : Window, IDisposable
             {
                 // Dispose managed state (managed objects).
                 Debug.WriteLine("Disposing MainWindow resources...");
-                HotKeyManager.UnregisterHotKey();
+                HotKeyManager.UnregisterAllHotkeys();
 
                 // Remove event handlers to prevent memory leaks
                 if (_slideOutAnimation != null)

@@ -2,6 +2,7 @@
 using System.Data;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Input;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,8 @@ public partial class App : Application
 {
     private TaskbarIcon? _notifyIcon;
     private MainWindow? _currentMainWindow;
+    private List<HotkeyDefinition>? _hotkeyDefinitions; 
+    private IServiceProvider? _serviceProviderInternal;
     public IServiceProvider ServiceProvider { get; private set; }
     public IConfiguration Configuration { get; private set; }
     
@@ -45,6 +48,7 @@ public partial class App : Application
         ConfigureServices(serviceCollection);
 
         ServiceProvider = serviceCollection.BuildServiceProvider();
+        _serviceProviderInternal = ServiceProvider;
         
         _notifyIcon = (TaskbarIcon?)TryFindResource("AppTrayIcon");
 
@@ -55,7 +59,12 @@ public partial class App : Application
         }
         
         _currentMainWindow = ServiceProvider.GetRequiredService<MainWindow>();
-        _currentMainWindow.Show();
+        _hotkeyDefinitions = ServiceProvider.GetService<List<HotkeyDefinition>>(); 
+        HotKeyManager.Initialize(_currentMainWindow);
+        
+        RegisterConfiguredHotkeys();
+        
+        //_currentMainWindow.Show();
         
         ShowStartupNotification();
     }
@@ -63,7 +72,8 @@ public partial class App : Application
     private void ConfigureServices(IServiceCollection services)
     {
         services.AddSingleton(Configuration);
-        services.AddSingleton(Configuration.GetSection("HotKey").Get<HotKeySettings>() ?? new HotKeySettings());
+        services.AddSingleton(Configuration.GetSection("Hotkeys")
+            .Get<List<HotkeyDefinition>>() ?? new List<HotkeyDefinition>());
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<GuidGeneratorViewModel>();
         
@@ -102,10 +112,101 @@ public partial class App : Application
             // For Singleton, we can try getting it again, though ideally it persists.
             _currentMainWindow = ServiceProvider?.GetService<MainWindow>();
         }
-
-        // Call the public method on MainWindow
+        
         _currentMainWindow?.ToggleOverlayVisibility(); 
     }
+    
+            private void RegisterConfiguredHotkeys()
+        {
+            if (_hotkeyDefinitions == null || !_hotkeyDefinitions.Any())
+            {
+                Debug.WriteLine("No hotkey definitions found in configuration.");
+                return;
+            }
+            if (_currentMainWindow == null)
+            {
+                 Debug.WriteLine("ERROR: MainWindow instance is null, cannot register hotkeys.");
+                 return; // Cannot proceed without window handle reference
+            }
+
+            Debug.WriteLine($"Found {_hotkeyDefinitions.Count} hotkey definitions. Registering...");
+
+            foreach (var definition in _hotkeyDefinitions)
+            {
+                if (string.IsNullOrWhiteSpace(definition.Name) || string.IsNullOrWhiteSpace(definition.Key))
+                {
+                    Debug.WriteLine($"Skipping invalid hotkey definition (missing Name or Key).");
+                    continue;
+                }
+
+                if (HotKeyManager.TryParseHotkey(definition.Key, definition.Modifiers, out Key key, out ModifierKeys modifiers))
+                {
+                    Action? actionToRegister = null;
+
+                    // --- Map Action based on Name ---
+                    switch (definition.Name.ToLowerInvariant())
+                    {
+                        case "togglewindow":
+                            actionToRegister = () => _currentMainWindow?.ToggleOverlayVisibility(); // Use lambda
+                            Debug.WriteLine($"Mapping action for '{definition.Name}'.");
+                            break;
+
+                        case "copyguid":
+                            actionToRegister = GenerateAndCopyGuid; // Reference the method below
+                            Debug.WriteLine($"Mapping action for '{definition.Name}'.");
+                            break;
+
+                        default:
+                            Debug.WriteLine($"WARNING: Unknown hotkey action name '{definition.Name}'.");
+                            break;
+                    }
+
+                    if (actionToRegister != null)
+                    {
+                        // Register the hotkey with its specific action
+                        int registeredId = HotKeyManager.RegisterHotKey(key, modifiers, actionToRegister);
+                        if (registeredId == 0)
+                        {
+                            Debug.WriteLine($"Failed to register hotkey '{definition.Name}' ({modifiers}+{key}).");
+                            // Maybe show a warning to the user?
+                        }
+                        // No need to store the ID here unless needed for individual unregistration elsewhere
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"Failed to parse hotkey definition for '{definition.Name}': Key='{definition.Key}', Modifiers='{definition.Modifiers}'.");
+                }
+            }
+        }
+        private void GenerateAndCopyGuid()
+        {
+            // This method will be called when the "CopyGuid" hotkey is pressed
+            Debug.WriteLine("CopyGuid hotkey action triggered.");
+            try
+            {
+                var newGuid = Guid.NewGuid().ToString();
+                // WPF UI thread is STA, Clipboard access should be okay directly
+                Clipboard.SetText(newGuid);
+                Debug.WriteLine($"Copied new GUID: {newGuid}");
+
+                // Show feedback notification
+                ShowTrayNotification("GUID Copied", $"Copied {newGuid} to clipboard.", BalloonIcon.Info);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ERROR copying GUID to clipboard: {ex.Message}");
+                ShowTrayNotification("Error", "Failed to copy GUID to clipboard.", BalloonIcon.Error);
+            }
+        }
+        
+        private void ShowTrayNotification(string title, string message, BalloonIcon icon)
+        {
+            // Use Dispatcher if calling from non-UI thread (not needed here, but good practice)
+            Dispatcher.Invoke(() => {
+            _notifyIcon?.ShowBalloonTip(title, message, icon);
+            });
+        }
 
     // --- Application Exit Cleanup ---
 
