@@ -14,7 +14,7 @@
         Closing="Window_Closing"
         ContentRendered="Window_ContentRendered"
         Name="ShellWindow"
-        Opacity="1" IsHitTestVisible="False" >
+        Opacity="0" IsHitTestVisible="False" >
 
     <Window.Resources>
         <!-- Resources specific to this Window OR used for templating ViewModels -->
@@ -26,15 +26,28 @@
 
         <!-- Animations -->
         <Storyboard x:Key="SlideInAnimation">
-            <DoubleAnimation Storyboard.TargetName="ShellWindow" Storyboard.TargetProperty="Opacity" From="0" To="1" Duration="0:0:0.3"/>
-            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" Storyboard.TargetProperty="Y" From="-300" To="0" Duration="0:0:0.3">
-                <DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+            <DoubleAnimation Storyboard.TargetName="ShellWindow" 
+                             Storyboard.TargetProperty="Opacity" 
+                             From="0" To="1" Duration="0:0:0.3"/>
+            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" 
+                             Storyboard.TargetProperty="Y" 
+                             From="-300" To="0" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseOut"/>
+                </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
         </Storyboard>
+        
         <Storyboard x:Key="SlideOutAnimation">
-            <DoubleAnimation Storyboard.TargetName="ShellWindow" Storyboard.TargetProperty="Opacity" From="1" To="0" Duration="0:0:0.3"/>
-            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" Storyboard.TargetProperty="Y" From="0" To="-300" Duration="0:0:0.3">
-                <DoubleAnimation.EasingFunction><QuadraticEase EasingMode="EaseIn"/></DoubleAnimation.EasingFunction>
+            <DoubleAnimation Storyboard.TargetName="ShellWindow" 
+                             Storyboard.TargetProperty="Opacity" 
+                             From="1" To="0" Duration="0:0:0.3"/>
+            <DoubleAnimation Storyboard.TargetName="WindowTranslateTransform" 
+                             Storyboard.TargetProperty="Y" 
+                             From="0" To="-300" Duration="0:0:0.3">
+                <DoubleAnimation.EasingFunction>
+                    <QuadraticEase EasingMode="EaseIn"/>
+                </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
         </Storyboard>
     </Window.Resources>
@@ -42,7 +55,8 @@
     <!-- Root visual content -->
     <Border x:Name="ContentBorder"
             Background="Black" CornerRadius="0 0 15 15"
-            BorderBrush="#FF444444" BorderThickness="1" Margin="0">
+            BorderBrush="#FF444444" BorderThickness="1" Margin="0"
+            RenderTransformOrigin="0,0">
         <Border.RenderTransform>
             <TranslateTransform x:Name="WindowTranslateTransform"/>
             <!-- Y value set in code-behind constructor based on height -->
@@ -58,9 +72,9 @@
             <!-- Navigation Panel -->
             <StackPanel Grid.Column="0" Background="#FF252526" Margin="5">
                 <!-- Navigation Buttons correctly using StaticResource -->
-                <Button Content="GUID Gen" Margin="5" Style="{StaticResource NavButtonStyle}"
-                        Command="{Binding NavigateToGuidCommand}"/>
-                <Button Content="Build Monitor" Margin="5" Style="{StaticResource  NavButtonStyle}" IsEnabled="False"
+                <Button Content="GUID Gen" Margin="5" Style="{DynamicResource NavButtonStyle}"
+                        Command="{Binding NavigateToGuidGeneratorCommand}"/>
+                <Button Content="Build Monitor" Margin="5" Style="{DynamicResource  NavButtonStyle}" IsEnabled="False"
                         Command="{Binding NavigateToBuildMonitorCommand}"/>
                 <!-- Add more buttons later -->
             </StackPanel>

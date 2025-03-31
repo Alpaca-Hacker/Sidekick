@@ -32,7 +32,10 @@ public partial class MainWindow : Window, IDisposable
         Left = 0;
         Top = 0;
         
-        WindowTranslateTransform.Y = _originalWindowHeight;
+        if (WindowTranslateTransform != null) 
+        {
+            WindowTranslateTransform.Y = -_originalWindowHeight;
+        }
 
     }
 
@@ -57,7 +60,7 @@ public partial class MainWindow : Window, IDisposable
         
         if (HotKeyManager.TryParseHotkey(_hotkeySettings.Key, _hotkeySettings.Modifiers, out Key key, out ModifierKeys modifiers))
         {
-            var registered = HotKeyManager.RegisterHotKey(this, key, modifiers, ToggleWindowVisibility);
+            var registered = HotKeyManager.RegisterHotKey(this, key, modifiers, ToggleOverlayVisibility);
             if (!registered)
             {
                 MessageBox.Show($"Failed to register configured hotkey ({modifiers}+{key}). It might be in use by another application or invalid.",
@@ -73,11 +76,11 @@ public partial class MainWindow : Window, IDisposable
             MessageBox.Show($"Invalid hotkey configuration in appsettings.json: Key='{_hotkeySettings.Key}', Modifiers='{_hotkeySettings.Modifiers}'. Using defaults or disabling.",
                 "Hotkey Config Error", MessageBoxButton.OK, MessageBoxImage.Error);
             
-            HotKeyManager.RegisterHotKey(this, Key.F12, ModifierKeys.Control | ModifierKeys.Shift, ToggleWindowVisibility);
+            HotKeyManager.RegisterHotKey(this, Key.F12, ModifierKeys.Control | ModifierKeys.Shift, ToggleOverlayVisibility);
         }
     }
 
-    private void ToggleWindowVisibility()
+    public void ToggleOverlayVisibility()
     {
         if (_isWindowVisible)
         {
