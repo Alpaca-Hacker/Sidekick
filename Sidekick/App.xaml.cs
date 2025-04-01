@@ -26,8 +26,7 @@ public partial class App
     {
         // --- Ensure only one instance runs (optional but recommended for tray apps) ---
         var appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name ?? "Sidekick";
-        bool createdNew;
-        _ = new Mutex(true, appName, out createdNew);
+        _ = new Mutex(true, appName, out var createdNew);
         if (!createdNew)
         {
             // App is already running! Exiting.
@@ -156,8 +155,23 @@ public partial class App
                             break;
 
                         case "copyguid":
-                            actionToRegister = hotkeyActions.GenerateAndCopyGuidToClipboard; 
-                            Debug.WriteLine($"Mapping action for '{definition.Name}'.");
+                            actionToRegister = async void () => {
+                                Debug.WriteLine($"Async lambda wrapper triggered for '{definition.Name}'.");
+                                try
+                                {
+                                    // Call the async method (using the interface)
+                                    await hotkeyActions.GenerateAndPasteGuid();
+                                    Debug.WriteLine($"Async call to GenerateAndPasteGuid completed for '{definition.Name}'.");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"ERROR executing '{definition.Name}' action from async lambda: {ex.Message}");
+                                    
+                                    // Maybe show error notification via service?
+                                    // var notifier = serviceProvider.GetService<INotificationService>();
+                                    // notifier?.ShowNotification("Hotkey Action Error", $"Failed action '{definition.Name}'.", BalloonIcon.Error);
+                                }
+                            };
                             break;
 
                         default:
