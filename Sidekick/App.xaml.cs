@@ -1,11 +1,11 @@
-﻿using System.Configuration;
-using System.Data;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sidekick.Services;
 using Sidekick.ViewModels;
 
 namespace Sidekick;
@@ -13,14 +13,14 @@ namespace Sidekick;
 /// <summary>
 /// Interaction logic for App.xaml
 /// </summary>
-public partial class App : Application
+public partial class App
 {
     private TaskbarIcon? _notifyIcon;
     private MainWindow? _currentMainWindow;
-    private List<HotkeyDefinition>? _hotkeyDefinitions; 
-    private IServiceProvider? _serviceProviderInternal;
-    public IServiceProvider ServiceProvider { get; private set; }
-    public IConfiguration Configuration { get; private set; }
+    private List<HotkeyDefinition>? _hotkeyDefinitions;
+    [Required]
+    private IServiceProvider ServiceProvider { get; set; }
+    private IConfiguration Configuration { get; set; }
     
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -48,7 +48,6 @@ public partial class App : Application
         ConfigureServices(serviceCollection);
 
         ServiceProvider = serviceCollection.BuildServiceProvider();
-        _serviceProviderInternal = ServiceProvider;
         
         _notifyIcon = (TaskbarIcon?)TryFindResource("AppTrayIcon");
 
@@ -62,9 +61,10 @@ public partial class App : Application
         _hotkeyDefinitions = ServiceProvider.GetService<List<HotkeyDefinition>>(); 
         HotKeyManager.Initialize(_currentMainWindow);
         
-        RegisterConfiguredHotkeys();
+        RegisterConfiguredHotkeys(ServiceProvider);
         
-        //_currentMainWindow.Show();
+        var notificationService = ServiceProvider.GetService<INotificationService>() as NotificationService;
+        notificationService?.Initialize(_notifyIcon);
         
         ShowStartupNotification();
     }
@@ -74,10 +74,13 @@ public partial class App : Application
         services.AddSingleton(Configuration);
         services.AddSingleton(Configuration.GetSection("Hotkeys")
             .Get<List<HotkeyDefinition>>() ?? new List<HotkeyDefinition>());
+        
+        services.AddSingleton<INotificationService, NotificationService>();
+        services.AddSingleton<IHotKeyActionService, HotKeyActionService>();
         services.AddSingleton<ShellViewModel>();
         services.AddSingleton<GuidGeneratorViewModel>();
         
-        services.AddTransient<MainWindow>();
+        services.AddSingleton<MainWindow>();
     }
     
     private void ShowStartupNotification()
@@ -110,13 +113,13 @@ public partial class App : Application
         {
             // If MainWindow was closed somehow, maybe recreate? Or handle error.
             // For Singleton, we can try getting it again, though ideally it persists.
-            _currentMainWindow = ServiceProvider?.GetService<MainWindow>();
+            _currentMainWindow = ServiceProvider.GetService<MainWindow>();
         }
         
         _currentMainWindow?.ToggleOverlayVisibility(); 
     }
     
-            private void RegisterConfiguredHotkeys()
+            private void RegisterConfiguredHotkeys(IServiceProvider serviceProvider)
         {
             if (_hotkeyDefinitions == null || !_hotkeyDefinitions.Any())
             {
@@ -130,6 +133,7 @@ public partial class App : Application
             }
 
             Debug.WriteLine($"Found {_hotkeyDefinitions.Count} hotkey definitions. Registering...");
+            var hotkeyActions = serviceProvider.GetRequiredService<IHotKeyActionService>();
 
             foreach (var definition in _hotkeyDefinitions)
             {
@@ -152,7 +156,7 @@ public partial class App : Application
                             break;
 
                         case "copyguid":
-                            actionToRegister = GenerateAndCopyGuid; // Reference the method below
+                            actionToRegister = hotkeyActions.GenerateAndCopyGuidToClipboard; 
                             Debug.WriteLine($"Mapping action for '{definition.Name}'.");
                             break;
 
@@ -164,7 +168,7 @@ public partial class App : Application
                     if (actionToRegister != null)
                     {
                         // Register the hotkey with its specific action
-                        int registeredId = HotKeyManager.RegisterHotKey(key, modifiers, actionToRegister);
+                        var registeredId = HotKeyManager.RegisterHotKey(key, modifiers, actionToRegister);
                         if (registeredId == 0)
                         {
                             Debug.WriteLine($"Failed to register hotkey '{definition.Name}' ({modifiers}+{key}).");
@@ -179,34 +183,7 @@ public partial class App : Application
                 }
             }
         }
-        private void GenerateAndCopyGuid()
-        {
-            // This method will be called when the "CopyGuid" hotkey is pressed
-            Debug.WriteLine("CopyGuid hotkey action triggered.");
-            try
-            {
-                var newGuid = Guid.NewGuid().ToString();
-                // WPF UI thread is STA, Clipboard access should be okay directly
-                Clipboard.SetText(newGuid);
-                Debug.WriteLine($"Copied new GUID: {newGuid}");
-
-                // Show feedback notification
-                ShowTrayNotification("GUID Copied", $"Copied {newGuid} to clipboard.", BalloonIcon.Info);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"ERROR copying GUID to clipboard: {ex.Message}");
-                ShowTrayNotification("Error", "Failed to copy GUID to clipboard.", BalloonIcon.Error);
-            }
-        }
-        
-        private void ShowTrayNotification(string title, string message, BalloonIcon icon)
-        {
-            // Use Dispatcher if calling from non-UI thread (not needed here, but good practice)
-            Dispatcher.Invoke(() => {
-            _notifyIcon?.ShowBalloonTip(title, message, icon);
-            });
-        }
+    
 
     // --- Application Exit Cleanup ---
 

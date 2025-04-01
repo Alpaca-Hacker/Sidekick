@@ -6,7 +6,7 @@ namespace Sidekick.ViewModels;
 
 public partial class GuidGeneratorViewModel : ObservableObject
 {
-    private bool _guidGenerated = false;
+    private bool _guidGenerated;
     [ObservableProperty]
     private string _generatedGuid = "(Click 'Generate' to create a new GUID)";
     

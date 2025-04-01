@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -80,7 +79,7 @@ public static class HotKeyManager
         return idToRegister;
     }
 
-    public static void UnregisterHotKey(int id)
+    private static void UnregisterHotKey(int id)
     {
          UnregisterHotKeyInternal(id);
     }
@@ -149,7 +148,7 @@ public static class HotKeyManager
 
     private static uint MapModifierKeys(ModifierKeys modifiers)
     {
-         uint fsModifiers = MOD_NONE;
+         var fsModifiers = MOD_NONE;
          if ((modifiers & ModifierKeys.Alt) == ModifierKeys.Alt) fsModifiers |= MOD_ALT;
          if ((modifiers & ModifierKeys.Control) == ModifierKeys.Control) fsModifiers |= MOD_CONTROL;
          if ((modifiers & ModifierKeys.Shift) == ModifierKeys.Shift) fsModifiers |= MOD_SHIFT;

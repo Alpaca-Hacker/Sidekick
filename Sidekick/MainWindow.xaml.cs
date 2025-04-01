@@ -1,7 +1,6 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Windows;
-using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using Sidekick.ViewModels;
 
@@ -10,15 +9,14 @@ namespace Sidekick;
 /// <summary>
 /// Interaction logic for MainWindow.xaml
 /// </summary>
-public partial class MainWindow : Window, IDisposable
+public partial class MainWindow : IDisposable
 {
-    
-
-    private bool _isWindowVisible = false;
-    private Storyboard _slideInAnimation;
-    private Storyboard _slideOutAnimation;
-    private bool _isDisposed = false; // To detect redundant calls
+    private bool _isWindowVisible;
+    private Storyboard? _slideInAnimation;
+    private Storyboard? _slideOutAnimation;
+    private bool _isDisposed; // To detect redundant calls
     private double _originalWindowHeight;
+    private bool _isInitialized;
 
     public MainWindow( ShellViewModel shellViewModel)
     {
@@ -35,26 +33,48 @@ public partial class MainWindow : Window, IDisposable
         {
             WindowTranslateTransform.Y = -_originalWindowHeight;
         }
+        
+        this.Opacity = 0;
+        this.IsHitTestVisible = false; // Start non-interactive
+        Debug.WriteLine($"Constructor: Initial Transform Y = {this.WindowTranslateTransform?.Y}, Opacity = {this.Opacity}");
 
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        SetupAnimations();
-        
-        // initial state
-        Opacity = 0;
-        IsHitTestVisible = false;
-        _isWindowVisible = false;
+        Debug.WriteLine("Window_Loaded fired.");
     }
     
     private void Window_ContentRendered(object sender, EventArgs e)
     {
+        Debug.WriteLine("Window_ContentRendered fired.");
+        // Ensure one-time setup happens after content is rendered
+        EnsureInitialized();
     }
     
+    private void EnsureInitialized()
+    {
+        if (_isInitialized) return; // Run only once
+
+        Debug.WriteLine("--- EnsureInitialized START ---");
+        SetupAnimations();
+        
+        if (new WindowInteropHelper(this).Handle == IntPtr.Zero) {
+            Debug.WriteLine("WARNING: Handle still zero in EnsureInitialized! Hotkeys might fail.");
+        } else {
+            Debug.WriteLine("EnsureInitialized: Window handle confirmed.");
+        }
+
+        _isInitialized = true;
+        Debug.WriteLine("--- EnsureInitialized END ---");
+    }
 
     public void ToggleOverlayVisibility()
     {
+        Debug.WriteLine($"ToggleOverlayVisibility called. _isWindowVisible = {_isWindowVisible}");
+        
+        EnsureInitialized();
+        
         if (_isWindowVisible)
         {
             HideWindow();
@@ -67,22 +87,61 @@ public partial class MainWindow : Window, IDisposable
 
     private void ShowWindow()
     {
-        // Bring window to front (optional, Topmost=True usually handles it)
-        Activate();
+        Debug.WriteLine("Enter ShowWindow method.");
 
-        IsHitTestVisible = true; 
-        _slideInAnimation.Begin(); 
+        if (!_isInitialized)
+        {
+            Debug.WriteLine("ERROR: ShowWindow called before EnsureInitialized completed!"); return;
+        }
+
+        if (_slideInAnimation == null)
+        {
+            Debug.WriteLine("ERROR: _slideInAnimation is NULL in ShowWindow!"); return;
+        } 
+        
+        this.Visibility = Visibility.Visible;
+
+        try {
+            this.Activate();
+            Debug.WriteLine("ShowWindow: Activate() called.");
+        } catch (InvalidOperationException ioex) {
+            Debug.WriteLine($"ERROR calling Activate: {ioex.Message}");
+            // If Activate fails consistently, the handle might *still* not be ready
+            // despite ContentRendered. This points to deeper WPF lifecycle issues.
+        }
+        
+        this.Opacity = 0; // Start transparent
+        if (this.WindowTranslateTransform != null) { this.WindowTranslateTransform.Y = -_originalWindowHeight; } // Start off-screen
+        Debug.WriteLine($"ShowWindow: State BEFORE animation: Opacity={this.Opacity}, TransformY={this.WindowTranslateTransform?.Y}");
+        
+        this.IsHitTestVisible = true;
+        try
+        {
+            
+            _slideInAnimation.Begin();
+            Debug.WriteLine("ShowWindow: _slideInAnimation.Begin() called.");
+        } catch(Exception ex) { Debug.WriteLine($"ERROR calling _slideInAnimation.Begin(): {ex.Message}"); }
+
+
         _isWindowVisible = true;
-        Debug.WriteLine("Showing window.");
+        Debug.WriteLine($"ShowWindow: _isWindowVisible set to {this._isWindowVisible}");
     }
-
     private void HideWindow()
     {
-        IsHitTestVisible = false; // Prevent interaction DURING animation
-        _slideOutAnimation.Begin();
+        Debug.WriteLine("Enter HideWindow method.");
+        if (!_isInitialized) { Debug.WriteLine("ERROR: HideWindow called before EnsureInitialized completed!"); return; }
+        if (_slideOutAnimation == null) { Debug.WriteLine("ERROR: _slideOutAnimation is NULL in HideWindow!"); return; }
+
+        this.IsHitTestVisible = false;
+        try
+        {
+            // Use simpler Begin()
+            _slideOutAnimation.Begin();
+            Debug.WriteLine("HideWindow: _slideOutAnimation.Begin() called.");
+        } catch (Exception ex) { Debug.WriteLine($"ERROR calling _slideOutAnimation.Begin(): {ex.Message}");}
+
         _isWindowVisible = false;
-        Debug.WriteLine("Hiding window.");
-        // Note: IsHitTestVisible remains false after animation via Completed event
+        Debug.WriteLine($"HideWindow: _isWindowVisible set to {this._isWindowVisible}");
     }
 
     private void SlideOutAnimationCompleted(object sender, EventArgs e)
@@ -114,7 +173,7 @@ public partial class MainWindow : Window, IDisposable
             slideOutYAnimation.To = -_originalWindowHeight;
         }
         
-        _slideOutAnimation.Completed += SlideOutAnimationCompleted;
+        _slideOutAnimation.Completed += SlideOutAnimationCompleted!;
     }
 
 
@@ -143,7 +202,7 @@ public partial class MainWindow : Window, IDisposable
                 // Remove event handlers to prevent memory leaks
                 if (_slideOutAnimation != null)
                 {
-                    _slideOutAnimation.Completed -= SlideOutAnimationCompleted;
+                    _slideOutAnimation.Completed -= SlideOutAnimationCompleted!;
                 }
             }
 
