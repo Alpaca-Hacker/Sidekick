@@ -168,8 +168,8 @@ public partial class App
                                     Debug.WriteLine($"ERROR executing '{definition.Name}' action from async lambda: {ex.Message}");
                                     
                                     // Maybe show error notification via service?
-                                    // var notifier = serviceProvider.GetService<INotificationService>();
-                                    // notifier?.ShowNotification("Hotkey Action Error", $"Failed action '{definition.Name}'.", BalloonIcon.Error);
+                                    var notifier = serviceProvider.GetService<INotificationService>();
+                                    notifier?.ShowNotification("Hotkey Action Error", $"Failed action '{definition.Name}'.", BalloonIcon.Error);
                                 }
                             };
                             break;
@@ -188,7 +188,6 @@ public partial class App
                             Debug.WriteLine($"Failed to register hotkey '{definition.Name}' ({modifiers}+{key}).");
                             // Maybe show a warning to the user?
                         }
-                        // No need to store the ID here unless needed for individual unregistration elsewhere
                     }
                 }
                 else
@@ -203,7 +202,7 @@ public partial class App
 
     protected override void OnExit(ExitEventArgs e)
     {
-        _notifyIcon?.Dispose(); // Ensure tray icon is removed on exit
+        _notifyIcon?.Dispose();
         base.OnExit(e);
     }
 

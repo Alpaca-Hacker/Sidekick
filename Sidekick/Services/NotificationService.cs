@@ -16,7 +16,6 @@ namespace Sidekick.Services;
             if (_notifyIconRef != null)
             {
                 _isInitialized = true;
-                Debug.WriteLine("NotificationService: TaskbarIcon reference received.");
                 // Optionally hook into an event like TrayBalloonTipShown/Closed/Clicked if needed
             } else {
                 Debug.WriteLine("WARNING: NotificationService Initialize called with null TaskbarIcon.");
@@ -36,7 +35,6 @@ namespace Sidekick.Services;
                 try
                 {
                     _notifyIconRef.ShowBalloonTip(title, message, icon);
-                    Debug.WriteLine($"NotificationService: ShowBalloonTip called for '{title}'.");
                 }
                 catch (Exception ex)
                 {

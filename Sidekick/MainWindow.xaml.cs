@@ -34,9 +34,8 @@ public partial class MainWindow : IDisposable
             WindowTranslateTransform.Y = -_originalWindowHeight;
         }
         
-        this.Opacity = 0;
-        this.IsHitTestVisible = false; // Start non-interactive
-        Debug.WriteLine($"Constructor: Initial Transform Y = {this.WindowTranslateTransform?.Y}, Opacity = {this.Opacity}");
+        Opacity = 0;
+        IsHitTestVisible = false; // Start non-interactive
 
     }
 
@@ -99,10 +98,10 @@ public partial class MainWindow : IDisposable
             Debug.WriteLine("ERROR: _slideInAnimation is NULL in ShowWindow!"); return;
         } 
         
-        this.Visibility = Visibility.Visible;
+        Visibility = Visibility.Visible;
 
         try {
-            this.Activate();
+            Activate();
             Debug.WriteLine("ShowWindow: Activate() called.");
         } catch (InvalidOperationException ioex) {
             Debug.WriteLine($"ERROR calling Activate: {ioex.Message}");
@@ -110,11 +109,11 @@ public partial class MainWindow : IDisposable
             // despite ContentRendered. This points to deeper WPF lifecycle issues.
         }
         
-        this.Opacity = 0; // Start transparent
-        if (this.WindowTranslateTransform != null) { this.WindowTranslateTransform.Y = -_originalWindowHeight; } // Start off-screen
-        Debug.WriteLine($"ShowWindow: State BEFORE animation: Opacity={this.Opacity}, TransformY={this.WindowTranslateTransform?.Y}");
+        Opacity = 0; // Start transparent
+        if (WindowTranslateTransform != null) { WindowTranslateTransform.Y = -_originalWindowHeight; } // Start off-screen
+        Debug.WriteLine($"ShowWindow: State BEFORE animation: Opacity={Opacity}, TransformY={WindowTranslateTransform?.Y}");
         
-        this.IsHitTestVisible = true;
+        IsHitTestVisible = true;
         try
         {
             
@@ -124,24 +123,21 @@ public partial class MainWindow : IDisposable
 
 
         _isWindowVisible = true;
-        Debug.WriteLine($"ShowWindow: _isWindowVisible set to {this._isWindowVisible}");
+        Debug.WriteLine($"ShowWindow: _isWindowVisible set to {_isWindowVisible}");
     }
     private void HideWindow()
     {
-        Debug.WriteLine("Enter HideWindow method.");
         if (!_isInitialized) { Debug.WriteLine("ERROR: HideWindow called before EnsureInitialized completed!"); return; }
         if (_slideOutAnimation == null) { Debug.WriteLine("ERROR: _slideOutAnimation is NULL in HideWindow!"); return; }
 
-        this.IsHitTestVisible = false;
+        IsHitTestVisible = false;
         try
         {
-            // Use simpler Begin()
             _slideOutAnimation.Begin();
-            Debug.WriteLine("HideWindow: _slideOutAnimation.Begin() called.");
         } catch (Exception ex) { Debug.WriteLine($"ERROR calling _slideOutAnimation.Begin(): {ex.Message}");}
 
         _isWindowVisible = false;
-        Debug.WriteLine($"HideWindow: _isWindowVisible set to {this._isWindowVisible}");
+        Debug.WriteLine($"HideWindow: _isWindowVisible set to {_isWindowVisible}");
     }
 
     private void SlideOutAnimationCompleted(object sender, EventArgs e)
