@@ -19,8 +19,7 @@ public partial class ShellViewModel : ObservableObject
     {
         _guidGeneratorViewModel = guidGeneratorViewModel;
              // _buildMonitorViewModel = buildMonitorViewModel;
-
-             // Set up navigation commands
+             
              NavigateToGuidGeneratorCommand = new RelayCommand(NavigateToGuid);
              NavigateToBuildMonitorCommand = new RelayCommand(NavigateToBuildMonitor, CanNavigateToBuildMonitor); // Example with CanExecute
         

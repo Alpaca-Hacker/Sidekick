@@ -5,6 +5,7 @@ using System.Windows.Input;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using Sidekick.Services;
 using Sidekick.ViewModels;
 
@@ -31,20 +32,27 @@ public partial class App
         {
             // App is already running! Exiting.
             MessageBox.Show("Sidekick is already running.", "Sidekick", MessageBoxButton.OK, MessageBoxImage.Information);
-            Application.Current.Shutdown();
+            Current.Shutdown();
             return;
         }
 
         base.OnStartup(e);
 
-        var builder = new ConfigurationBuilder()
+        var configurationBuilder = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-        Configuration = builder.Build();
+        Configuration = configurationBuilder.Build();
+        
+        Log.Logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(Configuration)
+            .Enrich.FromLogContext()
+            .CreateLogger();
+        
+        Log.Information("Sidekick is starting.");
 
         var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection);
+        ConfigureServices(serviceCollection, Configuration);
 
         ServiceProvider = serviceCollection.BuildServiceProvider();
         
@@ -52,7 +60,7 @@ public partial class App
 
         if (_notifyIcon == null)
         {
-            Debug.WriteLine("ERROR: Could not find TaskbarIcon resource.");
+            Log.Error("Could not find TaskbarIcon resource.");
             //Handle error?
         }
         
@@ -68,16 +76,18 @@ public partial class App
         ShowStartupNotification();
     }
     
-    private void ConfigureServices(IServiceCollection services)
+    
+    private void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddSingleton(Configuration);
-        services.AddSingleton(Configuration.GetSection("Hotkeys")
+        services.AddLogging(loggingBuilder => loggingBuilder.AddSerilog(dispose: true));
+        services.AddSingleton(configuration);
+        services.AddSingleton(configuration.GetSection("Hotkeys")
             .Get<List<HotkeyDefinition>>() ?? new List<HotkeyDefinition>());
         
         services.AddSingleton<INotificationService, NotificationService>();
         services.AddSingleton<IHotKeyActionService, HotKeyActionService>();
         services.AddSingleton<ShellViewModel>();
-        services.AddSingleton<GuidGeneratorViewModel>();
+        services.AddTransient<GuidGeneratorViewModel>();
         
         services.AddSingleton<MainWindow>();
     }
@@ -97,7 +107,7 @@ public partial class App
     private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
     {
         _notifyIcon?.Dispose(); // Clean up tray icon
-        Application.Current.Shutdown();
+        Current.Shutdown();
     }
 
     private void TrayIcon_DoubleClick(object sender, RoutedEventArgs e)
@@ -118,27 +128,27 @@ public partial class App
         _currentMainWindow?.ToggleOverlayVisibility(); 
     }
     
-            private void RegisterConfiguredHotkeys(IServiceProvider serviceProvider)
+    private void RegisterConfiguredHotkeys(IServiceProvider serviceProvider)
         {
             if (_hotkeyDefinitions == null || !_hotkeyDefinitions.Any())
             {
-                Debug.WriteLine("No hotkey definitions found in configuration.");
+                Log.Warning("No hotkey definitions found in configuration.");
                 return;
             }
             if (_currentMainWindow == null)
             {
-                 Debug.WriteLine("ERROR: MainWindow instance is null, cannot register hotkeys.");
+                 Log.Error("MainWindow instance is null, cannot register hotkeys.");
                  return; // Cannot proceed without window handle reference
             }
 
-            Debug.WriteLine($"Found {_hotkeyDefinitions.Count} hotkey definitions. Registering...");
+            Log.Information($"Found {_hotkeyDefinitions.Count} hotkey definitions. Registering...");
             var hotkeyActions = serviceProvider.GetRequiredService<IHotKeyActionService>();
 
             foreach (var definition in _hotkeyDefinitions)
             {
                 if (string.IsNullOrWhiteSpace(definition.Name) || string.IsNullOrWhiteSpace(definition.Key))
                 {
-                    Debug.WriteLine($"Skipping invalid hotkey definition (missing Name or Key).");
+                    Log.Warning($"Skipping invalid hotkey definition (missing Name or Key).");
                     continue;
                 }
 
@@ -151,21 +161,20 @@ public partial class App
                     {
                         case "togglewindow":
                             actionToRegister = () => _currentMainWindow?.ToggleOverlayVisibility(); // Use lambda
-                            Debug.WriteLine($"Mapping action for '{definition.Name}'.");
+                            Log.Information($"Mapping action for '{definition.Name}'.");
                             break;
 
                         case "copyguid":
                             actionToRegister = async void () => {
-                                Debug.WriteLine($"Async lambda wrapper triggered for '{definition.Name}'.");
                                 try
                                 {
                                     // Call the async method (using the interface)
                                     await hotkeyActions.GenerateAndPasteGuid();
-                                    Debug.WriteLine($"Async call to GenerateAndPasteGuid completed for '{definition.Name}'.");
+                                    Log.Debug($"Async call to GenerateAndPasteGuid completed for '{definition.Name}'.");
                                 }
                                 catch (Exception ex)
                                 {
-                                    Debug.WriteLine($"ERROR executing '{definition.Name}' action from async lambda: {ex.Message}");
+                                    Log.Error($"ERROR executing '{definition.Name}' action from async lambda: {ex.Message}");
                                     
                                     // Maybe show error notification via service?
                                     var notifier = serviceProvider.GetService<INotificationService>();
@@ -175,7 +184,7 @@ public partial class App
                             break;
 
                         default:
-                            Debug.WriteLine($"WARNING: Unknown hotkey action name '{definition.Name}'.");
+                            Log.Warning($"Unknown hotkey action name '{definition.Name}'.");
                             break;
                     }
 
@@ -192,7 +201,7 @@ public partial class App
                 }
                 else
                 {
-                    Debug.WriteLine($"Failed to parse hotkey definition for '{definition.Name}': Key='{definition.Key}', Modifiers='{definition.Modifiers}'.");
+                    Log.Error($"Failed to parse hotkey definition for '{definition.Name}': Key='{definition.Key}', Modifiers='{definition.Modifiers}'.");
                 }
             }
         }
@@ -202,7 +211,10 @@ public partial class App
 
     protected override void OnExit(ExitEventArgs e)
     {
+        Log.Information("Application Exiting...");
+        HotKeyManager.Dispose();
         _notifyIcon?.Dispose();
+        Log.CloseAndFlush(); 
         base.OnExit(e);
     }
 

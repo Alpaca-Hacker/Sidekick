@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using Microsoft.Extensions.Logging;
 using WindowsInput.Events;
 
 namespace Sidekick.Services
@@ -7,10 +8,12 @@ namespace Sidekick.Services
     public class HotKeyActionService : IHotKeyActionService
     {
         private readonly INotificationService _notificationService;
-        
-        public HotKeyActionService(INotificationService notificationService)
+        private readonly ILogger<HotKeyActionService> _logger;
+
+        public HotKeyActionService(INotificationService notificationService, ILogger<HotKeyActionService> logger)
         {
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task GenerateAndPasteGuid()
@@ -24,7 +27,7 @@ namespace Sidekick.Services
                     try {
                         Clipboard.SetText(guidToPaste);
                     } catch (Exception clipEx) {
-                        Debug.WriteLine($"ERROR setting clipboard text: {clipEx.Message}");
+                        _logger.LogError("ERROR setting clipboard text: {ClipExMessage}", clipEx.Message);
                         throw; // Re-throw to be caught below
                     }
                 };
@@ -50,7 +53,7 @@ namespace Sidekick.Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"ERROR copying GUID to clipboard via service: {ex.Message}");
+                _logger.LogError("ERROR copying GUID to clipboard via service: {ExMessage}", ex.Message);
                 _notificationService.ShowNotification("Error", "Failed to copy GUID to clipboard.", Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Error);
             }
         }

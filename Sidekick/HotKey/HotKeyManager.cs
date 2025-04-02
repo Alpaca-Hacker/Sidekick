@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using Serilog;
 
 namespace Sidekick;
 
@@ -37,25 +38,25 @@ public static class HotKeyManager
         var helper = new WindowInteropHelper(window);
         _windowHandle = helper.EnsureHandle();
         if (_windowHandle == IntPtr.Zero) {
-            Debug.WriteLine("WARNING: Window handle not available during HotKeyManager Initialize.");
+            Log.Warning("Window handle not available during HotKeyManager Initialize.");
             // Consider alternative initialization timing if this occurs
             return;
         }
 
         _source = HwndSource.FromHwnd(_windowHandle);
         if (_source == null) {
-            Debug.WriteLine("WARNING: HwndSource is null during HotKeyManager Initialize.");
+            Log.Warning("HwndSource is null during HotKeyManager Initialize.");
             return;
         }
         _source.AddHook(HwndHook);
-        Debug.WriteLine("HotKeyManager Initialized and Hook Added.");
+        Log.Information("HotKeyManager Initialized and Hook Added.");
     }
     
     public static int RegisterHotKey(Key key, ModifierKeys modifiers, Action hotkeyPressedAction)
     {
         if (_source == null || _windowHandle == IntPtr.Zero)
         {
-            Debug.WriteLine($"ERROR: HotKeyManager not initialized. Cannot register {modifiers}+{key}.");
+            Log.Warning($"HotKeyManager not initialized. Cannot register {modifiers}+{key}.");
             return 0; 
         }
 
@@ -67,7 +68,7 @@ public static class HotKeyManager
 
         if (!RegisterHotKey(_windowHandle, idToRegister, fsModifiers, vk))
         {
-            Debug.WriteLine($"Hotkey registration failed for ID {idToRegister} ({modifiers}+{key}). Maybe conflict?");
+            Log.Error($"Hotkey registration failed for ID {idToRegister} ({modifiers}+{key}). Maybe conflict?");
            
             return 0; 
         }
@@ -75,7 +76,7 @@ public static class HotKeyManager
         // Registration successful, store action and ID
         _hotkeyActions[idToRegister] = hotkeyPressedAction;
         _registeredIds.Add(idToRegister);
-        Debug.WriteLine($"Hotkey registered: ID={idToRegister}, Key={key}, Modifiers={modifiers}");
+        Log.Information($"Hotkey registered: ID={idToRegister}, Key={key}, Modifiers={modifiers}");
         return idToRegister;
     }
 
@@ -94,16 +95,16 @@ public static class HotKeyManager
             {
                 if (!UnregisterHotKey(_windowHandle, id))
                 {
-                    Debug.WriteLine($"Warning: Failed to unregister hotkey ID {id}.");
+                    Log.Warning($"Failed to unregister hotkey ID {id}.");
                 }
                 else
                 {
-                    Debug.WriteLine($"Hotkey unregistered: ID={id}");
+                    Log.Information($"Hotkey unregistered: ID={id}");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Exception during UnregisterHotKey ID {id}: {ex.Message}");
+                Log.Error($"Exception during UnregisterHotKey ID {id}: {ex.Message}");
             } // Catch potential errors
 
             _hotkeyActions.Remove(id);
@@ -113,7 +114,7 @@ public static class HotKeyManager
     
     public static void UnregisterAllHotkeys()
     {
-        Debug.WriteLine($"Unregistering all hotkeys ({_registeredIds.Count})...");
+        Log.Debug($"Unregistering all hotkeys ({_registeredIds.Count})...");
         
         List<int> idsToUnregister = new List<int>(_registeredIds);
         foreach (int id in idsToUnregister)
@@ -123,7 +124,7 @@ public static class HotKeyManager
         
         _hotkeyActions.Clear(); 
         _registeredIds.Clear();
-        Debug.WriteLine($"All hotkeys unregistered.");
+        Log.Debug($"All hotkeys unregistered.");
     }
     
     //Handle Key Press
@@ -131,16 +132,16 @@ public static class HotKeyManager
     {
         if (msg == WM_HOTKEY)
         {
-            int id = wParam.ToInt32(); 
-            Debug.WriteLine($"WM_HOTKEY received for ID: {id}");
+            var id = wParam.ToInt32(); 
+            Log.Debug($"WM_HOTKEY received for ID: {id}");
             
             if (_hotkeyActions.TryGetValue(id, out Action? action))
             {
-                Debug.WriteLine($"Action found for ID {id}. Invoking...");
+                Log.Debug($"Action found for ID {id}. Invoking...");
                 action?.Invoke();
                 handled = true;
             } else {
-                Debug.WriteLine($"No action found for ID {id}.");
+                Log.Warning($"No action found for ID {id}.");
             }
         }
         return IntPtr.Zero;
@@ -179,11 +180,11 @@ public static class HotKeyManager
     
     public static void Dispose()
     {
-        Debug.WriteLine("Disposing HotKeyManager...");
+        Log.Debug("Disposing HotKeyManager...");
         _source?.RemoveHook(HwndHook);
         _source = null;
         UnregisterAllHotkeys(); // Ensure all are unregistered
         _windowHandle = IntPtr.Zero;
-        Debug.WriteLine("HotKeyManager disposed.");
+        Log.Debug("HotKeyManager disposed.");
     }
 }

@@ -8,8 +8,7 @@ namespace Sidekick.Services;
     {
         private TaskbarIcon? _notifyIconRef;
         private bool _isInitialized;
-
-        // Initialize with the actual icon reference after it's created
+        
         public void Initialize(TaskbarIcon? notifyIcon)
         {
             _notifyIconRef = notifyIcon;
@@ -30,7 +29,7 @@ namespace Sidekick.Services;
                 return;
             }
             
-            Action showAction = () =>
+            var showAction = () =>
             {
                 try
                 {
